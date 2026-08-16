@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SpecTech</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:var(--tg-theme-bg-color,#fff);--text:var(--tg-theme-text-color,#111);--hint:var(--tg-theme-hint-color,#777);--btn:var(--tg-theme-button-color,#2481cc);--btntext:var(--tg-theme-button-text-color,#fff);--sec:var(--tg-theme-secondary-bg-color,#f1f1f1)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app{padding:18px 16px 24px;max-width:480px;margin:auto}.title{font-size:21px;font-weight:700;margin:2px 0 5px}.sub{color:var(--hint);font-size:14px;margin-bottom:16px}.card{background:var(--sec);border-radius:18px;padding:14px}.month{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:700}.nav{border:0;background:transparent;color:var(--text);font-size:25px;padding:6px 12px}.week,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.week{font-size:12px;color:var(--hint);margin-bottom:6px}.day{height:40px;border:0;border-radius:12px;background:transparent;color:var(--text);font-size:15px}.day.selected{background:var(--btn);color:var(--btntext)}.day.disabled{opacity:.22}.blank{height:40px}.times{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.time{border:0;border-radius:14px;padding:13px 5px;background:var(--sec);color:var(--text);font-size:16px}.time.selected{background:var(--btn);color:var(--btntext)}.bottom{position:sticky;bottom:0;background:var(--bg);padding-top:12px}.primary{width:100%;border:0;border-radius:14px;padding:14px;background:var(--btn);color:var(--btntext);font-size:16px;font-weight:700}.primary:disabled{opacity:.45}.hidden{display:none}
+</style></head>
+<body>
+<div class="app">
+<div class="title" id="title"></div><div class="sub" id="sub"></div>
+<section id="date"><div class="card"><div class="month"><button class="nav" id="prev">‹</button><span id="month"></span><button class="nav" id="next">›</button></div><div class="week"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div><div class="days" id="days"></div></div></section>
+<section id="time" class="hidden"><div class="times" id="times"></div></section>
+<div class="bottom"><button id="confirm" class="primary" disabled>Готово</button></div>
+</div>
+<script>
+const tg=window.Telegram?.WebApp; if(tg){tg.ready();tg.expand();}
+const mode=new URLSearchParams(location.search).get("mode")||"date";
+const today=new Date();today.setHours(0,0,0,0);let view=new Date(today),selected=null;
+const months=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+document.getElementById("title").textContent=mode==="time"?"Выберите время":"Выберите дату";
+document.getElementById("sub").textContent=mode==="time"?"Выберите одно время":"Выберите один день";
+function send(){if(!selected)return;const data=JSON.stringify({type:mode,value:selected});if(tg)tg.sendData(data);else alert(selected);}
+document.getElementById("confirm").onclick=send;
+function renderDate(){
+ document.getElementById("month").textContent=months[view.getMonth()]+" "+view.getFullYear();const box=document.getElementById("days");box.innerHTML="";
+ const first=new Date(view.getFullYear(),view.getMonth(),1),offset=(first.getDay()+6)%7;
+ for(let i=0;i<offset;i++){let x=document.createElement("div");x.className="blank";box.appendChild(x)}
+ const last=new Date(view.getFullYear(),view.getMonth()+1,0).getDate();
+ for(let d=1;d<=last;d++){let x=new Date(view.getFullYear(),view.getMonth(),d);x.setHours(0,0,0,0);let b=document.createElement("button");b.className="day";b.textContent=d;
+  if(x<today)b.classList.add("disabled");else b.onclick=()=>{selected=x.toISOString().slice(0,10);document.querySelectorAll(".day").forEach(q=>q.classList.remove("selected"));b.classList.add("selected");document.getElementById("confirm").disabled=false};box.appendChild(b)}
+}
+function renderTime(){const box=document.getElementById("times");box.innerHTML="";for(let h=6;h<=22;h++){for(let m of [0,30]){if(h===22&&m===30)continue;let s=String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"),b=document.createElement("button");b.className="time";b.textContent=s;b.onclick=()=>{selected=s;document.querySelectorAll(".time").forEach(q=>q.classList.remove("selected"));b.classList.add("selected");document.getElementById("confirm").disabled=false};box.appendChild(b)}}}
+if(mode==="time"){document.getElementById("date").classList.add("hidden");renderTime()}else renderDate();
+document.getElementById("prev").onclick=()=>{view.setMonth(view.getMonth()-1);renderDate()};document.getElementById("next").onclick=()=>{view.setMonth(view.getMonth()+1);renderDate()};
+</script></body></html>
