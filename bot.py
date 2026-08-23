@@ -405,7 +405,7 @@ async def owner_cat(c):
 @dp.message(F.text.in_({"Моя техника","Mening texnikam"}))
 async def my_equipment(m):
     uid=m.from_user.id;l=await lang(uid);clear(uid)
-    await m.answer("<b>Моя техника</b>\n\nОткройте красивую карточку гаража со всей вашей техникой и прошлыми работами." if l=="ru" else "<b>Mening texnikam</b>\n\nTexnikalaringiz va ishlaringizni ko'ring.",reply_markup=owner_web_menu(l,uid))
+    await m.answer("<b>Моя техника</b>\n\nОткройте красивую карточку гаража со всей вашей техникой и прошлыми работами." if l=="ru" else "<b>Mening texnikam</b>\n\nTexnikalaringiz va ishlaringizni ko'ring.",reply_markup=owner_web_menu(l,m.from_user.id))
 
 @dp.message(F.text.in_({"Мои заказы","Buyurtmalar"}))
 async def owner_orders(m):
@@ -725,9 +725,9 @@ async def customer_orders(m):
     uid=m.from_user.id;l=await lang(uid);clear(uid)
     u=await get_user(uid)
     if u and u["role"]=="owner":
-        await m.answer("<b>Мои работы</b>\n\nЗдесь будут ваши завершённые работы, время, стоимость и комиссия." if l=="ru" else "<b>Mening ishlarim</b>\n\nBu yerda tugallangan ishlar, vaqt, narx va komissiya ko‘rsatiladi.",reply_markup=owner_web_menu(l,uid))
+        await m.answer("<b>Мои работы</b>\n\nЗдесь будут ваши завершённые работы, время, стоимость и комиссия." if l=="ru" else "<b>Mening ishlarim</b>\n\nBu yerda tugallangan ishlar, vaqt, narx va komissiya ko‘rsatiladi.",reply_markup=owner_web_menu(l,m.from_user.id))
     else:
-        await m.answer("<b>История заказов</b>\n\nЗдесь будут все выполненные работы, длительность, стоимость и техника." if l=="ru" else "<b>Buyurtmalar tarixi</b>\n\nBarcha ishlar, vaqt va narxlar shu yerda.",reply_markup=customer_history_button(l,uid))
+        await m.answer("<b>История заказов</b>\n\nЗдесь будут все выполненные работы, длительность, стоимость и техника." if l=="ru" else "<b>Buyurtmalar tarixi</b>\n\nBarcha ishlar, vaqt va narxlar shu yerda.",reply_markup=customer_history_button(l,m.from_user.id))
 
 @dp.message(F.text.in_({"Поддержка","Yordam"}))
 async def support(m):

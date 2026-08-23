@@ -7,7 +7,6 @@ def language_keyboard(): return InlineKeyboardMarkup(inline_keyboard=[[InlineKey
 def phone_keyboard(lang='ru'):
     return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='📱 Отправить номер телефона' if lang=='ru' else '📱 Telefon raqamini yuborish',request_contact=True)]],resize_keyboard=True,one_time_keyboard=True)
 def _web_token(uid, ttl=3600):
-    if uid is None: return ''
     exp=int(time.time())+ttl
     payload=f'{int(uid)}.{exp}'
     sig=hmac.new(os.getenv('BOT_TOKEN','').encode(),payload.encode(),hashlib.sha256).hexdigest()
@@ -15,8 +14,9 @@ def _web_token(uid, ttl=3600):
 
 def _web_url(path, uid=None):
     base=os.getenv('MINIAPP_URL','').rstrip('/')
-    token=_web_token(uid)
-    return f'{base}{path}?auth={token}' if token else f'{base}{path}'
+    if uid is None:
+        return base+path
+    return f'{base}{path}?auth={_web_token(uid)}'
 
 def webapp_button(text,url): return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=text,web_app=WebAppInfo(url=url))]],resize_keyboard=True,one_time_keyboard=True)
 def main_menu(lang='ru',is_admin=False):

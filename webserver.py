@@ -1,4 +1,4 @@
-import os, json, hmac, hashlib, urllib.parse
+import os, json, hmac, hashlib, urllib.parse, time
 from pathlib import Path
 from aiohttp import web
 from aiogram import Bot
@@ -34,7 +34,7 @@ def validate_web_token(token):
     try:
         uid_s, exp_s, sig = token.split('.', 2)
         uid, exp = int(uid_s), int(exp_s)
-        if exp < int(__import__('time').time()): return None
+        if exp < int(time.time()): return None
         payload=f'{uid}.{exp}'
         expected=hmac.new(BOT_TOKEN.encode(),payload.encode(),hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected,sig): return None
@@ -51,6 +51,13 @@ async def auth(request):
     return uid
 
 async def admin_auth(request):
+    uid=validate_web_token(request.headers.get('X-SpecTech-Auth','') or request.query.get('auth',''))
+    if uid:
+        u=await get_user(uid)
+        username=str(u['username'] or '').lstrip('@').lower() if u else ''
+        if uid in ADMIN_IDS or username in ADMIN_USERNAMES or (u and u['role']=='admin'):
+            return uid
+        return None
     raw=request.headers.get('X-Telegram-Init-Data','')
     result=validate_init_user(raw)
     if not result:return None
