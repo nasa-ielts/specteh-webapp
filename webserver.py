@@ -12,7 +12,7 @@ _raw_admins=os.getenv('ADMIN_IDS','')
 ADMIN_IDS={int(x.strip()) for x in _raw_admins.split(',') if x.strip().isdigit()}
 ADMIN_USERNAMES={x.strip().lstrip('@').lower() for x in _raw_admins.split(',') if x.strip() and not x.strip().isdigit()}
 
-def validate_init_data(raw):
+def validate_init_user(raw):
     if not raw or not BOT_TOKEN:return None
     try:
         data=dict(urllib.parse.parse_qsl(raw,keep_blank_values=True)); received=data.pop('hash',None)
@@ -21,17 +21,29 @@ def validate_init_data(raw):
         secret=hmac.new(b'WebAppData',BOT_TOKEN.encode(),hashlib.sha256).digest()
         expected=hmac.new(secret,check.encode(),hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected,received):return None
-        user=json.loads(data.get('user','{}'));return int(user['id'])
+        user=json.loads(data.get('user','{}'))
+        return int(user['id']), str(user.get('username') or '').lstrip('@').lower()
     except Exception:return None
+
+def validate_init_data(raw):
+    result=validate_init_user(raw)
+    return result[0] if result else None
+
 async def auth(request):
     uid=validate_init_data(request.headers.get('X-Telegram-Init-Data',''))
     if not uid:return None
     return uid
+
 async def admin_auth(request):
-    uid=await auth(request)
-    if not uid:return None
-    # Allow configured admins even if their DB role was not upgraded yet.
-    if uid in ADMIN_IDS:return uid
+    raw=request.headers.get('X-Telegram-Init-Data','')
+    result=validate_init_user(raw)
+    if not result:return None
+    uid, username=result
+
+    # Allow configured admins by numeric Telegram ID or username,
+    # even if the database role has not been upgraded yet.
+    if uid in ADMIN_IDS or username in ADMIN_USERNAMES:return uid
+
     u=await get_user(uid)
     if not u:return None
     if u['role']=='admin':return uid
