@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: spectech-webapp
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    healthCheckPath: /health
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: MINIAPP_URL
+        sync: false
+      - key: PAYMENT_CARD_NUMBER
+        sync: false
+      - key: PAYMENT_RECIPIENT_NAME
+        sync: false
+      - key: COMMISSION_CARD_NUMBER
+        sync: false
+      - key: COMMISSION_RECIPIENT_NAME
+        sync: false
+      - key: SUPPORT_USERNAME
+        sync: false
+      - key: CARD_ENCRYPTION_KEY
+        sync: false
