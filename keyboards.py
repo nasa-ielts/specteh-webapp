@@ -1,11 +1,23 @@
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-import os
+import os, hmac, hashlib, time
 from datetime import date,timedelta
 
 def language_keyboard(): return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='🇷🇺 Русский',callback_data='lang:ru'),InlineKeyboardButton(text="🇺🇿 O'zbekcha",callback_data='lang:uz')]])
 def phone_keyboard(lang='ru'):
     return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='📱 Отправить номер телефона' if lang=='ru' else '📱 Telefon raqamini yuborish',request_contact=True)]],resize_keyboard=True,one_time_keyboard=True)
+def _web_token(uid, ttl=3600):
+    if uid is None: return ''
+    exp=int(time.time())+ttl
+    payload=f'{int(uid)}.{exp}'
+    sig=hmac.new(os.getenv('BOT_TOKEN','').encode(),payload.encode(),hashlib.sha256).hexdigest()
+    return f'{payload}.{sig}'
+
+def _web_url(path, uid=None):
+    base=os.getenv('MINIAPP_URL','').rstrip('/')
+    token=_web_token(uid)
+    return f'{base}{path}?auth={token}' if token else f'{base}{path}'
+
 def webapp_button(text,url): return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=text,web_app=WebAppInfo(url=url))]],resize_keyboard=True,one_time_keyboard=True)
 def main_menu(lang='ru',is_admin=False):
     rows=[[KeyboardButton(text='Заказать технику' if lang=='ru' else 'Texnika buyurtma qilish')],[KeyboardButton(text='Я владелец техники' if lang=='ru' else 'Men texnika egasiman')],[KeyboardButton(text='Мои заказы' if lang=='ru' else 'Buyurtmalarim'),KeyboardButton(text='Поддержка' if lang=='ru' else 'Yordam')],[KeyboardButton(text='Язык' if lang=='ru' else 'Til')]]
@@ -15,14 +27,14 @@ def owner_menu(lang='ru',is_admin=False):
     rows=[[KeyboardButton(text='Добавить технику' if lang=='ru' else "Texnika qo'shish"),KeyboardButton(text='Моя техника' if lang=='ru' else 'Mening texnikam')],[KeyboardButton(text='Моя карта' if lang=='ru' else 'Mening kartam'),KeyboardButton(text='Мои заказы' if lang=='ru' else 'Buyurtmalar')],[KeyboardButton(text='Поддержка' if lang=='ru' else 'Yordam'),KeyboardButton(text='Язык' if lang=='ru' else 'Til')]]
     if is_admin: rows.append([KeyboardButton(text='Админ-панель')])
     return ReplyKeyboardMarkup(keyboard=rows,resize_keyboard=True)
-def admin_web_menu(lang='ru'):
-    url=os.getenv('MINIAPP_URL','').rstrip('/')+'/admin'
+def admin_web_menu(lang='ru',uid=None):
+    url=_web_url('/admin',uid)
     return webapp_button('🛡 Админ-панель',url)
-def owner_web_menu(lang='ru'):
-    url=os.getenv('MINIAPP_URL','').rstrip('/')+'/owner'
+def owner_web_menu(lang='ru',uid=None):
+    url=_web_url('/owner',uid)
     return webapp_button('🚜 Моя техника',url)
-def customer_history_button(lang='ru'):
-    url=os.getenv('MINIAPP_URL','').rstrip('/')+'/history'
+def customer_history_button(lang='ru',uid=None):
+    url=_web_url('/history',uid)
     return webapp_button('📋 Мои заказы' if lang=='ru' else '📋 Buyurtmalarim',url)
 def equipment_categories(lang='ru',prefix='customer'):
     names=['Бетономиксер','Автобетононасос','Самосвал','Манипулятор','Экскаватор','Автокран'] if lang=='ru' else ['Beton aralashtirgich','Avtobeton nasosi','Samosval','Manipulyator','Ekskavator','Avtokran']

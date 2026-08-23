@@ -29,7 +29,23 @@ def validate_init_data(raw):
     result=validate_init_user(raw)
     return result[0] if result else None
 
+def validate_web_token(token):
+    if not token or not BOT_TOKEN:return None
+    try:
+        uid_s, exp_s, sig = token.split('.', 2)
+        uid, exp = int(uid_s), int(exp_s)
+        if exp < int(__import__('time').time()): return None
+        payload=f'{uid}.{exp}'
+        expected=hmac.new(BOT_TOKEN.encode(),payload.encode(),hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected,sig): return None
+        return uid
+    except Exception:
+        return None
+
 async def auth(request):
+    token=request.headers.get('X-SpecTech-Auth','') or request.query.get('auth','')
+    uid=validate_web_token(token)
+    if uid:return uid
     uid=validate_init_data(request.headers.get('X-Telegram-Init-Data',''))
     if not uid:return None
     return uid
