@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: spectech-webapp
+    name: specteh-webapp-p7x6
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
