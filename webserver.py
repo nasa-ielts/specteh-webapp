@@ -51,28 +51,38 @@ async def auth(request):
     return uid
 
 async def admin_auth(request):
-    uid=validate_web_token(request.headers.get('X-SpecTech-Auth','') or request.query.get('auth',''))
+    token=request.headers.get('X-SpecTech-Auth','') or request.query.get('auth','')
+    uid=validate_web_token(token)
+
     if uid:
-        u=await get_user(uid)
-        username=str(u['username'] or '').lstrip('@').lower() if u else ''
-        if uid in ADMIN_IDS or username in ADMIN_USERNAMES or (u and u['role']=='admin'):
+        # The users table has no username column.
+        # Check configured numeric admin IDs first, then the DB role.
+        if uid in ADMIN_IDS:
             return uid
+
+        u=await get_user(uid)
+        if u and u['role']=='admin':
+            return uid
+
         return None
+
     raw=request.headers.get('X-Telegram-Init-Data','')
     result=validate_init_user(raw)
     if not result:return None
     uid, username=result
 
-    # Allow configured admins by numeric Telegram ID or username,
-    # even if the database role has not been upgraded yet.
-    if uid in ADMIN_IDS or username in ADMIN_USERNAMES:return uid
+    # Allow configured admins by numeric Telegram ID or username.
+    if uid in ADMIN_IDS or username in ADMIN_USERNAMES:
+        return uid
 
+    # Or allow users whose role is admin in the database.
     u=await get_user(uid)
     if not u:return None
     if u['role']=='admin':return uid
     return None
 
 def rowdict(r):return dict(r) if r else None
+
 async def json_auth(request, fn):
     uid=await auth(request)
     if not uid:return web.json_response({'error':'unauthorized'},status=401)
@@ -82,18 +92,25 @@ async def admin_pending(request):
     uid=await admin_auth(request)
     if not uid:return web.json_response({'error':'forbidden'},status=403)
     try:
-        return web.json_response({'equipment':[rowdict(x) for x in await get_pending_equipment()], 'commission':[rowdict(x) for x in await get_pending_commission_payments()], 'payments':[rowdict(x) for x in await get_pending_customer_payments()]})
+        return web.json_response({
+            'equipment':[rowdict(x) for x in await get_pending_equipment()],
+            'commission':[rowdict(x) for x in await get_pending_commission_payments()],
+            'payments':[rowdict(x) for x in await get_pending_customer_payments()]
+        })
     except Exception as ex:
         print('admin_pending error:', repr(ex))
         return web.json_response({'error':'server_error','detail':str(ex)}, status=500)
+
 async def admin_active(request):
     uid=await admin_auth(request)
     if not uid:return web.json_response({'error':'forbidden'},status=403)
     return web.json_response({'orders':[rowdict(x) for x in await get_active_orders()]})
+
 async def admin_equipment(request):
     uid=await admin_auth(request)
     if not uid:return web.json_response({'error':'forbidden'},status=403)
     return web.json_response({'equipment':[rowdict(x) for x in await get_verified_equipment()]})
+
 async def admin_eq_status(request):
     uid=await admin_auth(request)
     if not uid:return web.json_response({'error':'forbidden'},status=403)
@@ -120,6 +137,7 @@ async def admin_eq_status(request):
             except Exception as ex: print('equipment delete notify error:',ex)
     else:return web.json_response({'error':'bad action'},status=400)
     return web.json_response({'ok':True})
+
 async def admin_commission(request):
     uid=await admin_auth(request)
     if not uid:return web.json_response({'error':'forbidden'},status=403)
@@ -131,14 +149,16 @@ async def admin_commission(request):
             ol=(await get_user(o['owner_id']))['language'] or 'ru'
             await web_bot.send_message(o['owner_id'],t('commission_paid_ok',ol))
     else:
-        # Keep driver blocked and remove submitted flag so admin can see it was rejected.
         import aiosqlite
-        async with aiosqlite.connect(DB_PATH) as db: await db.execute('UPDATE orders SET commission_payment_submitted=0 WHERE id=?',(oid,)); await db.commit()
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute('UPDATE orders SET commission_payment_submitted=0 WHERE id=?',(oid,))
+            await db.commit()
         res=True
         if web_bot:
             ol=(await get_user(o['owner_id']))['language'] or 'ru'
             await web_bot.send_message(o['owner_id'],t('commission_rejected',ol))
     return web.json_response({'ok':bool(res),'approved':ok})
+
 async def admin_payment(request):
     uid=await admin_auth(request)
     if not uid:return web.json_response({'error':'forbidden'},status=403)
@@ -153,12 +173,20 @@ async def admin_payment(request):
             cl=(await get_user(o['customer_id']))['language'] or 'ru'
             await web_bot.send_message(o['customer_id'],t('customer_payment_rejected',cl).format(id=oid,amount=o['final_amount']))
     return web.json_response({'ok':bool(res),'approved':ok})
+
 async def owner_data(request):
     return await json_auth(request, lambda uid: owner_payload(uid))
+
 async def owner_payload(uid):
-    return web.json_response({'equipment':[rowdict(x) for x in await get_owner_equipment(uid)],'orders':[rowdict(x) for x in await get_owner_orders(uid)],'user':rowdict(await get_user(uid))})
+    return web.json_response({
+        'equipment':[rowdict(x) for x in await get_owner_equipment(uid)],
+        'orders':[rowdict(x) for x in await get_owner_orders(uid)],
+        'user':rowdict(await get_user(uid))
+    })
+
 async def history_data(request):
     return await json_auth(request, lambda uid: history_payload(uid))
+
 async def history_payload(uid):
     u=await get_user(uid)
     role=(u['role'] if u else '')
